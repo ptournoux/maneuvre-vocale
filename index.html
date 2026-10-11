@@ -52,10 +52,15 @@
 
   <section class="carte">
     <div class="ligne">
+      <select id="modele" style="font:inherit;padding:10px;border-radius:10px;background:var(--fond);color:var(--texte);border:1px solid var(--bord)">
+        <option value="onnx-community/whisper-tiny">tiny (~150 Mo, rapide, peu précis)</option>
+        <option value="onnx-community/whisper-base">base (~300 Mo, meilleur compromis)</option>
+        <option value="onnx-community/whisper-small">small (~1 Go, précis, lent sur téléphone)</option>
+      </select>
       <button id="charger" class="principal">Charger le modèle Whisper</button>
       <span id="modele-statut" class="discret">Modèle non chargé.</span>
     </div>
-    <p class="discret">Premier chargement : environ 150 Mo, mis en cache ensuite par le navigateur.</p>
+    <p class="discret">Premier chargement selon le modèle, mis en cache ensuite par le navigateur. Passe en Wi-Fi.</p>
   </section>
 
   <section class="carte">

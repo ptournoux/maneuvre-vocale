@@ -2,7 +2,8 @@ import { interpreter, appliquer, etatInitial } from './commands.js';
 
 // --- Configuration -----------------------------------------------------------
 // Modèle Whisper compatible transformers.js. Surcharge possible : ?modele=...
-const MODELE = new URLSearchParams(location.search).get('modele') || 'onnx-community/whisper-tiny';
+// Le choix se fait dans l'interface (liste déroulante) ; ?modele=... pré-sélectionne un modèle.
+const MODELE_PAR_DEFAUT = new URLSearchParams(location.search).get('modele') || 'onnx-community/whisper-base';
 const LANGUE = 'french';
 // Variante du modèle : fp32 = la plus compatible avec le runtime WASM (les variantes quantifiées 4 bits
 // ont échoué avec « MatMulNBits ... missing scale » sur téléphone). Plus lourde, mais fiable.
@@ -17,7 +18,7 @@ let env = null;
 // --- Éléments ---------------------------------------------------------------
 const $ = (id) => document.getElementById(id);
 const el = {
-  charger: $('charger'), modeleStatut: $('modele-statut'),
+  charger: $('charger'), modeleStatut: $('modele-statut'), modele: $('modele'),
   ptt: $('ptt'), microStatut: $('micro-statut'),
   saisie: $('saisie'), texte: $('texte'),
   transcription: $('transcription'), resultat: $('resultat'),
@@ -77,6 +78,7 @@ function traiterPhrase(phrase, transcrit) {
 
 // --- Modèle -----------------------------------------------------------------
 async function chargerModele() {
+  const MODELE = el.modele.value;
   el.charger.disabled = true;
   el.modeleStatut.textContent = 'Téléchargement du modèle…';
   try {
@@ -101,6 +103,7 @@ async function chargerModele() {
       },
     });
     el.modeleStatut.textContent = `Modèle prêt : ${MODELE}`;
+    el.modele.disabled = true;
     el.modeleStatut.className = 'ok';
     el.ptt.disabled = false;
     el.microStatut.textContent = 'Maintiens le bouton (ou la barre espace) pour parler, relâche pour envoyer.';
@@ -110,6 +113,7 @@ async function chargerModele() {
     el.modeleStatut.textContent = `Échec du chargement (${err.message ?? err}). Vérifie l'accès à huggingface.co, ou place les fichiers du modèle dans ./models/${MODELE}/.`;
     el.modeleStatut.className = 'ko';
     el.charger.disabled = false;
+    el.modele.disabled = false;
     ajouterJournal('échec du chargement du modèle', false);
   }
 }
