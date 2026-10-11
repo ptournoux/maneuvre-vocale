@@ -4,6 +4,9 @@ import { interpreter, appliquer, etatInitial } from './commands.js';
 // Modèle Whisper compatible transformers.js. Surcharge possible : ?modele=...
 const MODELE = new URLSearchParams(location.search).get('modele') || 'onnx-community/whisper-tiny';
 const LANGUE = 'french';
+// Variante du modèle : fp32 = la plus compatible avec le runtime WASM (les variantes quantifiées 4 bits
+// ont échoué avec « MatMulNBits ... missing scale » sur téléphone). Plus lourde, mais fiable.
+const DTYPE = 'fp32';
 const FREQUENCE = 16000; // Whisper attend du 16 kHz mono
 // Bibliothèque chargée à la demande, version figée (jsDelivr). Ne charge rien tant que le modèle n'est pas demandé.
 const TRANSFORMERS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/dist/transformers.min.js';
@@ -87,6 +90,7 @@ async function chargerModele() {
 
     asr = await pipeline('automatic-speech-recognition', MODELE, {
       device: 'wasm',
+      dtype: DTYPE,
       progress_callback: (p) => {
         if (p.status === 'progress' && p.progress !== undefined) {
           el.modeleStatut.textContent = `Téléchargement ${p.file ?? ''} : ${Math.round(p.progress)} %`;
