@@ -217,4 +217,5 @@ document.querySelectorAll('[data-phrase]').forEach((b) => {
   b.addEventListener('click', () => traiterPhrase(b.dataset.phrase, false));
 });
 
+el.modele.value = MODELE_PAR_DEFAUT;
 afficherEtat();
