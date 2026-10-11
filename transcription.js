@@ -2,7 +2,7 @@
 // Le modèle ne fait que transcrire ; l'interprétation reste faite par commands.js.
 
 export const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-export const MODELE_API_PAR_DEFAUT = 'openai/gpt-audio-mini';
+export const MODELE_API_PAR_DEFAUT = 'google/gemini-2.5-flash-lite';
 
 // Consigne courte : transcription fidèle, pas de commentaire, vocabulaire de manœuvre.
 export const CONSIGNE = [

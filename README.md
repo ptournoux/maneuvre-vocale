@@ -30,7 +30,7 @@ Pour un modèle hébergé localement : placer les fichiers dans `models/<identif
 
 ## Mode API (OpenRouter)
 
-Dans la liste, choisis « API OpenRouter ». Saisis ta clé (`sk-or-...`), crée-la avec un plafond de dépense. Elle reste dans le navigateur : session seulement par défaut, ou mémorisée si tu coches la case. L'audio est envoyé à OpenRouter ; le parseur de commandes reste local.
+Dans la liste, choisis « API OpenRouter » (modèle par défaut : `google/gemini-2.5-flash-lite`, modifiable). Saisis ta clé (`sk-or-...`), crée-la avec un plafond de dépense. Elle reste dans le navigateur : session seulement par défaut, ou mémorisée si tu coches la case. L'audio est envoyé à OpenRouter ; le parseur de commandes reste local.
 
 ## Limites connues
 
