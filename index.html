@@ -22,6 +22,7 @@
       --accent: #6aa7ff; --ok: #3fb950; --ko: #ff7b72; --bord: #2a3442;
     }
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
     body { margin: 0; background: var(--fond); color: var(--texte); font: 16px/1.45 system-ui, sans-serif; }
     main { max-width: 760px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
     h1 { font-size: 1.25rem; margin: 8px 0 0; }
@@ -56,9 +57,16 @@
         <option value="onnx-community/whisper-tiny">tiny (~150 Mo, rapide, peu précis)</option>
         <option value="onnx-community/whisper-base">base (~300 Mo, meilleur compromis)</option>
         <option value="onnx-community/whisper-small">small (~1 Go, précis, lent sur téléphone)</option>
+        <option value="openrouter">API OpenRouter (audio, rapide, payant)</option>
       </select>
       <button id="charger" class="principal">Charger le modèle Whisper</button>
       <span id="modele-statut" class="discret">Modèle non chargé.</span>
+    </div>
+    <div id="api-bloc" hidden style="margin-top:10px;display:grid;gap:8px">
+      <input id="cle" type="password" placeholder="Clé API OpenRouter (sk-or-...)" autocomplete="off" style="font:inherit;padding:10px;border-radius:10px;border:1px solid var(--bord);background:var(--fond);color:var(--texte)">
+      <input id="modele-api" type="text" value="openai/gpt-audio-mini" style="font:inherit;padding:10px;border-radius:10px;border:1px solid var(--bord);background:var(--fond);color:var(--texte)">
+      <label class="discret"><input id="memoriser" type="checkbox"> Mémoriser la clé sur cet appareil (sinon effacée à la fermeture de l'onglet)</label>
+      <p class="discret">L'audio part vers OpenRouter. Crée une clé dédiée avec un plafond de dépense.</p>
     </div>
     <p class="discret">Premier chargement selon le modèle, mis en cache ensuite par le navigateur. Passe en Wi-Fi.</p>
   </section>

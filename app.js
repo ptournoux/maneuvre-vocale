@@ -1,4 +1,5 @@
 import { interpreter, appliquer, etatInitial } from './commands.js';
+import { transcrireOpenRouter } from './transcription.js';
 
 // --- Configuration -----------------------------------------------------------
 // Modèle Whisper compatible transformers.js. Surcharge possible : ?modele=...
@@ -19,6 +20,7 @@ let env = null;
 const $ = (id) => document.getElementById(id);
 const el = {
   charger: $('charger'), modeleStatut: $('modele-statut'), modele: $('modele'),
+  apiBloc: $('api-bloc'), cle: $('cle'), modeleApi: $('modele-api'), memoriser: $('memoriser'),
   ptt: $('ptt'), microStatut: $('micro-statut'),
   saisie: $('saisie'), texte: $('texte'),
   transcription: $('transcription'), resultat: $('resultat'),
@@ -77,7 +79,37 @@ function traiterPhrase(phrase, transcrit) {
 }
 
 // --- Modèle -----------------------------------------------------------------
+const modeApi = () => el.modele.value === 'openrouter';
+
+// La clé reste dans le navigateur : sessionStorage par défaut, localStorage si l'utilisateur le demande.
+function lireCle() {
+  try { return localStorage.getItem('orKey') || sessionStorage.getItem('orKey') || ''; } catch { return ''; }
+}
+function sauverCle(cle) {
+  try {
+    sessionStorage.setItem('orKey', cle);
+    if (el.memoriser.checked) localStorage.setItem('orKey', cle);
+    else localStorage.removeItem('orKey');
+  } catch { /* stockage indisponible : la clé ne sera pas retenue */ }
+}
+
+function activerApi() {
+  const cle = el.cle.value.trim();
+  if (!cle) {
+    el.modeleStatut.textContent = 'Saisis ta clé API OpenRouter.';
+    el.modeleStatut.className = 'ko';
+    return;
+  }
+  sauverCle(cle);
+  el.modeleStatut.textContent = `API prête : ${el.modeleApi.value.trim()}`;
+  el.modeleStatut.className = 'ok';
+  el.ptt.disabled = false;
+  el.microStatut.textContent = 'Maintiens le bouton (ou la barre espace) pour parler, relâche pour envoyer.';
+  ajouterJournal('API OpenRouter activée');
+}
+
 async function chargerModele() {
+  if (modeApi()) { activerApi(); return; }
   const MODELE = el.modele.value;
   el.charger.disabled = true;
   el.modeleStatut.textContent = 'Téléchargement du modèle…';
@@ -133,7 +165,7 @@ async function versPCM16k(blob) {
 }
 
 async function demarrerEnregistrement() {
-  if (!asr || enCours || maintenu) return;
+  if ((!asr && !modeApi()) || enCours || maintenu) return;
   maintenu = true;
   try {
     const flux = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -176,10 +208,12 @@ async function traiterAudio(blob) {
       return;
     }
     const t0 = performance.now();
-    const { text } = await asr(pcm, { language: LANGUE, task: 'transcribe' });
+    const texte = modeApi()
+      ? await transcrireOpenRouter({ cle: lireCle(), modele: el.modeleApi.value.trim(), pcm })
+      : (await asr(pcm, { language: LANGUE, task: 'transcribe' })).text;
     const ms = Math.round(performance.now() - t0);
     el.microStatut.textContent = `Transcrit en ${ms} ms (audio : ${(pcm.length / FREQUENCE).toFixed(1)} s).`;
-    const phrase = text.trim();
+    const phrase = texte.trim();
     if (!phrase) { ajouterJournal('silence ou rien compris', false); return; }
     traiterPhrase(phrase, true);
   } catch (err) {
@@ -218,4 +252,15 @@ document.querySelectorAll('[data-phrase]').forEach((b) => {
 });
 
 el.modele.value = MODELE_PAR_DEFAUT;
+el.cle.value = lireCle();
+const majModeApi = () => {
+  const api = modeApi();
+  el.apiBloc.hidden = !api;
+  el.charger.textContent = api ? 'Activer l’API' : 'Charger le modèle Whisper';
+  el.modeleStatut.className = 'discret';
+  el.modeleStatut.textContent = api ? 'Saisis ta clé puis active l’API.' : 'Modèle non chargé.';
+  el.ptt.disabled = true;
+};
+el.modele.addEventListener('change', majModeApi);
+majModeApi();
 afficherEtat();

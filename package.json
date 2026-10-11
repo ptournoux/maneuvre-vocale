@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node --test test/commands.test.mjs",
+    "test": "node --test test/commands.test.mjs test/transcription.test.mjs",
     "serve": "python3 -m http.server 8000"
   },
   "keywords": [],

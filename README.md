@@ -24,8 +24,13 @@ Pour un modèle hébergé localement : placer les fichiers dans `models/<identif
 |---|---|
 | `index.html` | Interface : push-to-talk, saisie texte, état du bateau, journal |
 | `app.js` | Chargement du modèle Whisper, capture micro, rééchantillonnage 16 kHz, transcription |
+| `transcription.js` | Mode API : envoi de l'audio WAV à OpenRouter (modèle audio), réponse = texte |
 | `commands.js` | Parseur déterministe des phrases en commandes (sans IA) et application à l'état |
 | `test/commands.test.mjs` | Tests du parseur (`npm test`) |
+
+## Mode API (OpenRouter)
+
+Dans la liste, choisis « API OpenRouter ». Saisis ta clé (`sk-or-...`), crée-la avec un plafond de dépense. Elle reste dans le navigateur : session seulement par défaut, ou mémorisée si tu coches la case. L'audio est envoyé à OpenRouter ; le parseur de commandes reste local.
 
 ## Limites connues
 
