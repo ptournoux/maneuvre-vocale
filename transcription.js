@@ -1,15 +1,10 @@
-// Transcription via un modèle audio hébergé sur OpenRouter.
-// Le modèle ne fait que transcrire ; l'interprétation reste faite par commands.js.
+// Classement d'un ordre oral via un modèle audio hébergé sur OpenRouter.
+// Le modèle choisit la commande parmi une liste fermée ; classement.js valide et borne le résultat.
+
+import { CATALOGUE, consigneClassement, schemaClassement, lireReponse } from './classement.js';
 
 export const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 export const MODELE_API_PAR_DEFAUT = 'google/gemini-2.5-flash-lite';
-
-// Consigne courte : transcription fidèle, pas de commentaire, vocabulaire de manœuvre.
-export const CONSIGNE = [
-  'Transcris exactement, en français, ce que dit la personne sur cet enregistrement.',
-  'Réponds uniquement par la transcription, sans guillemets ni commentaire.',
-  'Vocabulaire fréquent : barre, bâbord, tribord, moteur, avant, arrière, stop, homme à la mer, degrés, pour cent.',
-].join(' ');
 
 // PCM mono Float32 -> fichier WAV 16 bits (en-tête RIFF de 44 octets).
 export function encoderWav(pcm, frequence = 16000) {
@@ -48,38 +43,53 @@ export function base64(octets) {
   return btoa(binaire);
 }
 
-// Corps de requête au format chat/completions avec une entrée audio WAV en base64.
-export function corpsRequete({ modele, pcm, frequence = 16000 }) {
-  const wav = base64(encoderWav(pcm, frequence));
-  return {
+// Corps de requête : consigne + liste des commandes + audio WAV en base64.
+// avecSchema=true impose la sortie JSON par schéma (enum des commandes possibles).
+export function corpsClassement({ modele, pcm, catalogue = CATALOGUE, avecSchema = true, frequence = 16000 }) {
+  const corps = {
     model: modele,
     temperature: 0,
     messages: [{
       role: 'user',
       content: [
-        { type: 'text', text: CONSIGNE },
-        { type: 'input_audio', input_audio: { data: wav, format: 'wav' } },
+        { type: 'text', text: consigneClassement(catalogue) },
+        { type: 'input_audio', input_audio: { data: base64(encoderWav(pcm, frequence)), format: 'wav' } },
       ],
     }],
   };
+  if (avecSchema) {
+    corps.response_format = {
+      type: 'json_schema',
+      json_schema: { name: 'commande_manoeuvre', strict: true, schema: schemaClassement(catalogue) },
+    };
+  }
+  return corps;
 }
 
-// Appelle OpenRouter et renvoie le texte transcrit. La clé n'est jamais journalisée.
-export async function transcrireOpenRouter({ cle, modele, pcm, fetchFn = fetch }) {
-  const reponse = await fetchFn(OPENROUTER_URL, {
+async function appeler({ cle, corps, fetchFn }) {
+  return fetchFn(OPENROUTER_URL, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${cle}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(corpsRequete({ modele, pcm })),
+    headers: { Authorization: `Bearer ${cle}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(corps),
   });
+}
+
+// Appelle OpenRouter et renvoie le classement validé (voir lireReponse).
+// Si le modèle refuse la sortie structurée (HTTP 400), on réessaie une fois sans schéma :
+// la consigne demande déjà du JSON, et lireReponse vérifie que la commande est dans la liste.
+// La clé n'est jamais journalisée.
+export async function classerOpenRouter({ cle, modele, pcm, catalogue = CATALOGUE, fetchFn = fetch }) {
+  let schema = true;
+  let reponse = await appeler({ cle, corps: corpsClassement({ modele, pcm, catalogue, avecSchema: true }), fetchFn });
+  if (reponse.status === 400) {
+    schema = false;
+    reponse = await appeler({ cle, corps: corpsClassement({ modele, pcm, catalogue, avecSchema: false }), fetchFn });
+  }
   if (!reponse.ok) {
     const detail = (await reponse.text().catch(() => '')).slice(0, 200);
     throw new Error(`OpenRouter ${reponse.status} ${detail}`.trim());
   }
   const json = await reponse.json();
-  const texte = json?.choices?.[0]?.message?.content;
-  if (typeof texte !== 'string') throw new Error('réponse OpenRouter inattendue');
-  return texte.trim();
+  const classement = lireReponse(json?.choices?.[0]?.message?.content, catalogue);
+  return { ...classement, schema };
 }

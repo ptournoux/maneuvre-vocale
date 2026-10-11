@@ -24,13 +24,20 @@ Pour un modèle hébergé localement : placer les fichiers dans `models/<identif
 |---|---|
 | `index.html` | Interface : push-to-talk, saisie texte, état du bateau, journal |
 | `app.js` | Chargement du modèle Whisper, capture micro, rééchantillonnage 16 kHz, transcription |
-| `transcription.js` | Mode API : envoi de l'audio WAV à OpenRouter (modèle audio), réponse = texte |
+| `transcription.js` | Mode API : audio WAV + liste des commandes envoyés à OpenRouter, réponse JSON (commande choisie) |
+| `classement.js` | Catalogue des commandes, validation de la réponse du modèle, rattrapage local par similarité |
 | `commands.js` | Parseur déterministe des phrases en commandes (sans IA) et application à l'état |
-| `test/commands.test.mjs` | Tests du parseur (`npm test`) |
+| `test/*.test.mjs` | Tests : parseur, classement, appel API simulé (`npm test`) |
 
 ## Mode API (OpenRouter)
 
-Dans la liste, choisis « API OpenRouter » (modèle par défaut : `google/gemini-2.5-flash-lite`, modifiable). Saisis ta clé (`sk-or-...`), crée-la avec un plafond de dépense. Elle reste dans le navigateur : session seulement par défaut, ou mémorisée si tu coches la case. L'audio est envoyé à OpenRouter ; le parseur de commandes reste local.
+Dans la liste, choisis « API OpenRouter » (modèle par défaut : `google/gemini-2.5-flash-lite`, modifiable). Saisis ta clé (`sk-or-...`), crée-la avec un plafond de dépense. Elle reste dans le navigateur : session seulement par défaut, ou mémorisée si tu coches la case. L'audio est envoyé à OpenRouter.
+
+Le modèle ne transcrit pas librement : il **choisit la commande parmi la liste** (`classement.js`), ou répond « aucune ». La sortie est imposée par schéma JSON ; si le modèle refuse le schéma, la page réessaie sans, et vérifie quand même que la commande est dans la liste. En dessous de 0,5 de confiance, la commande est ignorée. Le parseur local recoupe la transcription renvoyée (« confirmé » ou « non confirmé par le parseur »).
+
+## Rattrapage local (Whisper et saisie texte)
+
+Si le parseur ne reconnaît pas la phrase, elle est comparée aux phrases d'exemple du catalogue par similarité de texte : « bar a tri bord 20 » est rattachée à « barre à tribord ». En dessous du seuil (0,6), la phrase est rejetée.
 
 ## Limites connues
 

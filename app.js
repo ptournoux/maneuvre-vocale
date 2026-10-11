@@ -1,5 +1,6 @@
 import { interpreter, appliquer, etatInitial } from './commands.js';
-import { transcrireOpenRouter } from './transcription.js';
+import { classerOpenRouter } from './transcription.js';
+import { rattraper, versCommande, SEUIL_CONFIANCE } from './classement.js';
 
 // --- Configuration -----------------------------------------------------------
 // Modèle Whisper compatible transformers.js. Surcharge possible : ?modele=...
@@ -64,18 +65,47 @@ function afficherEtat() {
   }));
 }
 
+function executer(commande, phrase, detail) {
+  etat = appliquer(etat, commande);
+  el.resultat.textContent = `${detail}\ncommande : ${JSON.stringify(commande, null, 2)}`;
+  ajouterJournal(`« ${phrase} » → ${commande.type} (${detail.split('\n')[0]})`);
+  afficherEtat();
+}
+
+function nonReconnu(phrase, raison) {
+  el.resultat.textContent = `Non reconnu : « ${phrase} »\n${raison}`;
+  ajouterJournal(`non reconnu : « ${phrase} »`, false);
+}
+
+// Texte (Whisper local ou saisie) : parseur d'abord, puis rattrapage par similarité.
 function traiterPhrase(phrase, transcrit) {
   el.transcription.textContent = transcrit ? phrase : '(saisie texte)';
   const r = interpreter(phrase);
-  if (!r.ok) {
-    el.resultat.textContent = `Non reconnu : « ${phrase} »\n${r.raison}`;
-    ajouterJournal(`non reconnu : « ${phrase} »`, false);
-    return;
+  if (r.ok) return executer(r.commande, phrase, `parseur : règle ${r.regle}`);
+  const proche = rattraper(phrase);
+  if (proche) {
+    return executer(proche.commande, phrase,
+      `rattrapé par similarité : « ${proche.phrase} » (score ${proche.score.toFixed(2)})`);
   }
-  etat = appliquer(etat, r.commande);
-  el.resultat.textContent = `règle : ${r.regle}\ncommande : ${JSON.stringify(r.commande, null, 2)}`;
-  ajouterJournal(`« ${phrase} » → ${r.commande.type}`);
-  afficherEtat();
+  nonReconnu(phrase, r.raison);
+}
+
+// Mode API : le modèle a choisi dans la liste ; on valide, puis on recoupe avec le parseur local.
+function traiterClassement(r) {
+  const entendu = r.transcription || '(pas de transcription)';
+  el.transcription.textContent = entendu;
+  const resume = `modèle : ${r.commande}, confiance ${r.confiance.toFixed(2)}${r.schema ? '' : ', sans schéma'}`;
+  const commande = versCommande(r);
+  if (!commande) {
+    const raison = r.commande === 'aucune' ? 'le modèle n’a reconnu aucune commande'
+      : r.confiance < SEUIL_CONFIANCE ? `confiance trop basse (${r.confiance.toFixed(2)}), répète`
+      : 'paramètre manquant (côté de la barre ?)';
+    return nonReconnu(entendu, `${resume}\n${raison}`);
+  }
+  const controle = interpreter(entendu);
+  const recoupe = controle.ok && JSON.stringify(controle.commande) === JSON.stringify(commande)
+    ? 'confirmé par le parseur' : 'non confirmé par le parseur';
+  executer(commande, entendu, `${resume}\n${recoupe}`);
 }
 
 // --- Modèle -----------------------------------------------------------------
@@ -208,11 +238,15 @@ async function traiterAudio(blob) {
       return;
     }
     const t0 = performance.now();
-    const texte = modeApi()
-      ? await transcrireOpenRouter({ cle: lireCle(), modele: el.modeleApi.value.trim(), pcm })
-      : (await asr(pcm, { language: LANGUE, task: 'transcribe' })).text;
-    const ms = Math.round(performance.now() - t0);
-    el.microStatut.textContent = `Transcrit en ${ms} ms (audio : ${(pcm.length / FREQUENCE).toFixed(1)} s).`;
+    const duree = `audio : ${(pcm.length / FREQUENCE).toFixed(1)} s`;
+    if (modeApi()) {
+      const r = await classerOpenRouter({ cle: lireCle(), modele: el.modeleApi.value.trim(), pcm });
+      el.microStatut.textContent = `Classé en ${Math.round(performance.now() - t0)} ms (${duree}).`;
+      traiterClassement(r);
+      return;
+    }
+    const texte = (await asr(pcm, { language: LANGUE, task: 'transcribe' })).text;
+    el.microStatut.textContent = `Transcrit en ${Math.round(performance.now() - t0)} ms (${duree}).`;
     const phrase = texte.trim();
     if (!phrase) { ajouterJournal('silence ou rien compris', false); return; }
     traiterPhrase(phrase, true);
