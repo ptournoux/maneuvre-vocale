@@ -91,6 +91,9 @@ async function chargerModele() {
     asr = await pipeline('automatic-speech-recognition', MODELE, {
       device: 'wasm',
       dtype: DTYPE,
+      // L'erreur vient de la passe d'optimisation du graphe (TransposeDQWeightsForMatMulNBits) :
+      // on la désactive pour charger le modèle tel quel.
+      session_options: { graphOptimizationLevel: 'disabled' },
       progress_callback: (p) => {
         if (p.status === 'progress' && p.progress !== undefined) {
           el.modeleStatut.textContent = `Téléchargement ${p.file ?? ''} : ${Math.round(p.progress)} %`;
