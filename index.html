@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prototype vocal – manœuvres</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%E2%9A%93%3C/text%3E%3C/svg%3E">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --fond: #f6f7f9; --carte: #ffffff; --texte: #1b2430; --discret: #5b6676;
+      --accent: #1f6feb; --ok: #1a7f37; --ko: #b42318; --bord: #d8dde6;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --fond: #0f141b; --carte: #171e27; --texte: #e6ebf2; --discret: #9aa6b6;
+        --accent: #6aa7ff; --ok: #3fb950; --ko: #ff7b72; --bord: #2a3442;
+      }
+    }
+    :root[data-theme="dark"] {
+      --fond: #0f141b; --carte: #171e27; --texte: #e6ebf2; --discret: #9aa6b6;
+      --accent: #6aa7ff; --ok: #3fb950; --ko: #ff7b72; --bord: #2a3442;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--fond); color: var(--texte); font: 16px/1.45 system-ui, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+    h1 { font-size: 1.25rem; margin: 8px 0 0; }
+    .carte { background: var(--carte); border: 1px solid var(--bord); border-radius: 12px; padding: 14px; }
+    .discret { color: var(--discret); font-size: .9rem; }
+    button { font: inherit; border-radius: 10px; border: 1px solid var(--bord); padding: 10px 14px; background: var(--carte); color: var(--texte); cursor: pointer; }
+    button.principal { background: var(--accent); color: #fff; border-color: transparent; }
+    button:disabled { opacity: .5; cursor: default; }
+    #ptt { width: 100%; padding: 22px; font-size: 1.1rem; touch-action: none; user-select: none; }
+    #ptt.enregistre { background: var(--ko); color: #fff; border-color: transparent; }
+    .ligne { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    input[type=text] { flex: 1; min-width: 180px; font: inherit; padding: 10px; border-radius: 10px; border: 1px solid var(--bord); background: var(--fond); color: var(--texte); }
+    .chips button { font-size: .85rem; padding: 6px 10px; }
+    .etat { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+    .etat div { background: var(--fond); border-radius: 10px; padding: 10px; }
+    .etat b { display: block; font-size: .8rem; color: var(--discret); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .ok { color: var(--ok); } .ko { color: var(--ko); }
+    pre { white-space: pre-wrap; word-break: break-word; margin: 6px 0 0; font: .85rem/1.4 ui-monospace, monospace; background: var(--fond); padding: 10px; border-radius: 10px; }
+    ol.journal { margin: 0; padding-left: 1.2em; max-height: 220px; overflow: auto; font-size: .9rem; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Prototype vocal – manœuvres</h1>
+    <p class="discret">Whisper en WebAssembly, dans ce navigateur. Aucune donnée vocale n'est envoyée à un serveur.</p>
+  </header>
+
+  <section class="carte">
+    <div class="ligne">
+      <button id="charger" class="principal">Charger le modèle Whisper</button>
+      <span id="modele-statut" class="discret">Modèle non chargé.</span>
+    </div>
+    <p class="discret">Premier chargement : environ 150 Mo, mis en cache ensuite par le navigateur.</p>
+  </section>
+
+  <section class="carte">
+    <button id="ptt" disabled>Maintenir pour parler (ou barre espace)</button>
+    <p id="micro-statut" class="discret">Charge le modèle, puis maintiens le bouton pour donner une commande.</p>
+  </section>
+
+  <section class="carte">
+    <form id="saisie" class="ligne">
+      <input id="texte" type="text" placeholder="Ou tape la phrase (test sans micro)" autocomplete="off">
+      <button type="submit">Interpréter</button>
+    </form>
+    <div class="ligne chips" style="margin-top:10px">
+      <button type="button" data-phrase="Barre à tribord 20">Barre à tribord 20</button>
+      <button type="button" data-phrase="Moteur en avant à 40">Moteur en avant à 40</button>
+      <button type="button" data-phrase="Marche arrière doucement">Marche arrière doucement</button>
+      <button type="button" data-phrase="Arrête le moteur">Arrête le moteur</button>
+      <button type="button" data-phrase="Homme à la mer !">Homme à la mer</button>
+    </div>
+  </section>
+
+  <section class="carte">
+    <h2 style="font-size:1rem;margin:0 0 10px">Dernière phrase</h2>
+    <p><b>Transcription :</b> <span id="transcription">—</span></p>
+    <pre id="resultat">—</pre>
+  </section>
+
+  <section class="carte">
+    <h2 style="font-size:1rem;margin:0 0 10px">État du bateau (affichage seulement)</h2>
+    <div class="etat" id="etat"></div>
+  </section>
+
+  <section class="carte">
+    <h2 style="font-size:1rem;margin:0 0 10px">Journal</h2>
+    <ol class="journal" id="journal"></ol>
+  </section>
+</main>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
